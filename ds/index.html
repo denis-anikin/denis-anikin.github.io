@@ -31,17 +31,8 @@
             margin: auto;
         }
     </style>
-    <script type="text/Javascript">
-        jQuery(document).ready(function () {
-        });
-    </script>
 </head>
 <body>
-    <form hidden>
-        <input type='radio' id='lastfm_user_reli' name='lastfm' value='reliktum' onclick='changeSessionKey()' />reliktum<br />
-        <input type='radio' id='lastfm_user_junk' name='lastfm' value='mail_junk' onclick='changeSessionKey()' />mail_junk<br />
-    </form>
-    <textarea id='deferred-scrobble-result' hidden></textarea>
 	<input type='file' id='loadfile_input' accept='application/json' onchange='LoadDataAsJSON(event);'></input>
 	<input type='button' value='Export' onclick='exportAsText();'></input>
 	<input type='button' value='Clear' onclick='clearPreparedData();' disabled></input>
