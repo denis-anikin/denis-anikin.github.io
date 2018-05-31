@@ -1,0 +1,53 @@
+﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Deferred Scrobbler</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <link type="text/css" rel="stylesheet" href="ext/jquery/tablesorter/style.css" />
+    <script type="text/Javascript" src="ext/jquery/jquery.min.js"></script>
+    <script type="text/javascript" src="ext/jquery/tablesorter/jquery.tablesorter.min.js"></script>
+    <script type="text/Javascript" src="ext/md5.js"></script>
+    <script type="text/Javascript" src="ext/utf8.js"></script>
+    <script type="text/Javascript" src="ext/FileSaver.js"></script>
+    <script type="text/Javascript" src="./deferred2.js"></script>
+    <!--<script type="text/Javascript" src="data/aimp_data.json"></script>-->
+    <style type="text/css">
+        .cover-art-div {
+            position: relative;
+            width: 200px;
+            height: 200px;
+        }
+
+        .cover-art {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            max-height: 100%;
+            max-width: 100%;
+            display: block;
+            margin: auto;
+        }
+    </style>
+    <script type="text/Javascript">
+        jQuery(document).ready(function () {
+        });
+    </script>
+</head>
+<body>
+    <form hidden>
+        <input type='radio' id='lastfm_user_reli' name='lastfm' value='reliktum' onclick='changeSessionKey()' />reliktum<br />
+        <input type='radio' id='lastfm_user_junk' name='lastfm' value='mail_junk' onclick='changeSessionKey()' />mail_junk<br />
+    </form>
+    <textarea id='deferred-scrobble-result' hidden></textarea>
+	<input type='file' id='loadfile_input' accept='application/json' onchange='LoadDataAsJSON(event);'></input>
+	<input type='button' value='Export' onclick='exportAsText();'></input>
+	<input type='button' value='Clear' onclick='clearPreparedData();' disabled></input>
+    Count of scrobbled tracks is <span id='deferred-scrobble-count'>0</span>
+    <table id='main-table' class='tablesorter'>
+        <tbody id='main-table-body'></tbody>
+    </table>
+</body>
+</html>

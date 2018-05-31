@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8" stanalone="yes" ?>
+<package>
+<job id="parse">
+    <runtime>
+        <comment>For help type "parse.wsf /?"</comment>
+        <description>...</description>
+        <unnamed
+            name="filename"
+            type="string"
+            helpstring="input filename"
+            required="true"
+        />
+        <unnamed
+            name="contenttype"
+            type="string"
+            helpstring="1 - AIMP tracklist / 2 - MusicLabel semicolon export"
+            required="true"
+        />
+        <unnamed
+            name="outname"
+            type="string"
+            helpstring="output file name"
+            required="false"
+        />
+        <unnamed
+            name="varname"
+            type="string"
+            helpstring="output JS-variable name"
+            required="false"
+        />
+        <example>Example: "parse.wsf cd-aimp.txt 1 aimp_data"</example>
+    </runtime>
+    <script language="JScript" src="json2.js"/>
+    <script language="JScript">
+        <![CDATA[
+        var objArgs = WScript.Arguments;
+
+        if (objArgs.Length < 2) {
+            objArgs.ShowUsage();
+            WScript.Quit(1);
+        }
+
+        var objFSO = new ActiveXObject("Scripting.FileSystemObject");
+
+        var res = null;
+        if (1 == objArgs(1)) {
+            // parse AIMP tracklist
+            // format must be "%L|%Artist|%AlbumArtist|%TN|%A|%T"
+            res = JSON.stringify(parseAimp(objArgs(0)), null, 4);
+        } else if (2 == objArgs(1)) {
+            // parse MusicLabel data file
+            res = JSON.stringify(parseMusicLabel(objArgs(0)));
+        }
+
+        if (res) {
+            var outName = (objArgs.Length > 2) ? objArgs(2) : objArgs(0);
+            var varName = (objArgs.Length > 3) ? objArgs(3) : null;
+            var objStream = new ActiveXObject("ADODB.Stream");
+            objStream.Type = 2;
+            objStream.Charset = 'utf-8';
+            objStream.Open();
+            if (varName) {
+                objStream.WriteText('var ' + varName + ' = ');
+            }
+            objStream.WriteText(res);
+            if (varName) {
+                objStream.WriteText(';');
+            }
+            objStream.SaveToFile('' + outName + '.json', 2);
+            objStream.Close();
+        }
+
+        function parseMusicLabel(fileName) {
+            var mlData = objFSO.OpenTextFile(fileName, 1, false, -1); // 1 = ForReading, -1 needs for UNICODE
+            var mlDataHeader;
+            var mlEtries = [];
+            while (mlData.AtEndOfStream != true) {
+                var TextLine = mlData.ReadLine();
+                if (!mlDataHeader) {
+                    mlDataHeader = TextLine.split(';');
+                    continue;
+                }
+
+                TextLine = TextLine.split(';');
+                var tmpObj = Object();
+                for (var i in mlDataHeader) {
+                    if ("" != TextLine[i]) {
+                        if ("" == mlDataHeader[i])
+                            tmpObj['unnamed_field_' + i] = TextLine[i];
+                        else
+                            tmpObj[mlDataHeader[i]] = TextLine[i];
+                    }
+                }
+                mlEtries.push(tmpObj);
+            }
+            mlData.Close();
+            return mlEtries;
+        }
+
+        function parseAimp(fileName) {
+            // format must be "%L|%Artist|%AlbumArtist|%TN|%A|%T"
+            var aimpPl = objFSO.OpenTextFile(fileName, 1, false, -1); // 1 = ForReading, -1 needs for UNICODE
+            var aimpItems = [];
+            var curAlbumTn = 0;
+            var albumTmpObj;
+            var TextLinePrev, TextLineBeforePrev;
+            while (aimpPl.AtEndOfStream != true) {
+                var TextLine = aimpPl.ReadLine();
+                var items = TextLine.split('|');
+
+                if (6 != items.length) {
+                    // cann't parse, it could be header or something like this
+                    curAlbumTn = 0;
+                    if (albumTmpObj) {
+                        // add ONE album
+                        aimpItems.push(albumTmpObj);
+                        albumTmpObj = null;
+                    }
+
+                    TextLineBeforePrev = TextLinePrev;
+                    TextLinePrev = TextLine;
+                    continue;
+                }
+
+                if (0 == curAlbumTn) {
+                    //albumTmpObj = [];
+                    albumTmpObj = Object();
+
+                    // parse AIMP-playlist categories (format is "%AlbumArtist / %D <star> ...", where star is &#9733; or "\u2605")
+                    // (also strib Disk Letter)
+                    var mnMatch = TextLineBeforePrev.match(/ \/ [a-zA-Z]:\\([^\u2605]+) \u2605/)
+                    if (mnMatch) {
+                        TextLineBeforePrev = mnMatch[1];
+                        // remove last part with CUE
+/*
+                        if( ".cue" === TextLineBeforePrev.substr(TextLineBeforePrev.length-4).toLowerCase() ) {
+                            TextLineBeforePrev = TextLineBeforePrev.substr(0, TextLineBeforePrev.lastIndexOf('\\'));
+                        }
+*/
+                    }
+
+                    albumTmpObj.id = TextLineBeforePrev;
+                    albumTmpObj.tracks = [];
+                }
+                albumTmpObj.tracks[curAlbumTn] = Object();
+
+                var LEN_INDEX = 0, ARTIST_INDEX = 1, ALBUMARTIST_INDEX = 2, TN_INDEX = 3, ALBUM_INDEX = 4, TITLE_INDEX = 5;
+                //var trackDurationArray = items[LEN_INDEX].split(':');
+                //var trackDuration = ((parseInt(trackDurationArray[0], 10) * 60) + parseInt(trackDurationArray[1], 10)) * 1000;
+                albumTmpObj.tracks[curAlbumTn]['TN'] = items[TN_INDEX];
+                albumTmpObj.tracks[curAlbumTn]['Artist'] = items[ARTIST_INDEX];
+                albumTmpObj.tracks[curAlbumTn]['AlbumArtist'] = items[ALBUMARTIST_INDEX];
+                albumTmpObj.tracks[curAlbumTn]['Album'] = items[ALBUM_INDEX];
+                albumTmpObj.tracks[curAlbumTn]['Title'] = items[TITLE_INDEX];
+                albumTmpObj.tracks[curAlbumTn]['Duration'] = items[LEN_INDEX];
+                curAlbumTn++;
+            }
+            // add last item
+            if (albumTmpObj) {
+                // add ONE album
+                aimpItems.push(albumTmpObj);
+                albumTmpObj = {};
+            }
+
+            aimpPl.Close();
+            return aimpItems;
+        }
+
+        function escapeChars(str) {
+            output = unescape(str);
+            output = output.replace(/'/g, "&#39;");
+            output = output.replace(/"/g, "&quot;");
+            return output;
+        }
+        ]]>
+   </script>
+</job>
+</package>
