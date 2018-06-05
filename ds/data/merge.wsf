@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" stanalone="yes" ?>
+<package>
+<job id="merge">
+    <script language="JScript" src="json2.js"/>
+    <script language="JScript">
+        <![CDATA[
+        var objFSO = new ActiveXObject("Scripting.FileSystemObject");
+        var objArgs = WScript.Arguments;
+
+        var g_ResultJSON = [];
+
+        for (var i = 0; i < objArgs.Length; i++) {
+            var fileName = objArgs(i);
+            var objFile = objFSO.OpenTextFile(fileName, 1, false, -2); // 1 = ForReading, -1 needs for UNICODE
+            var fileData = objFile.ReadAll();
+            var jsonData = JSON.parse(fileData);
+
+            for (var a in jsonData) {
+                var alreadyExists = false;
+                for (var b in g_ResultJSON) {
+                    if (jsonData[a].id === g_ResultJSON[b].id) {
+                        g_ResultJSON[b].tracks = g_ResultJSON[b].tracks.concat(jsonData[a].tracks);
+                        alreadyExists = true;
+                        break;
+                    }
+                }
+                if( !alreadyExists ) {
+                    g_ResultJSON.push(jsonData[a]);
+                }
+            }
+        }
+
+        var outName = 'res';
+        var objStream = new ActiveXObject("ADODB.Stream");
+        objStream.Type = 2;
+        objStream.Charset = 'utf-8';
+        objStream.Open();
+        objStream.WriteText(JSON.stringify(g_ResultJSON, null, 4));
+        objStream.SaveToFile('' + outName + '.json', 2);
+        objStream.Close();
+
+        ]]>
+   </script>
+</job>
+</package>

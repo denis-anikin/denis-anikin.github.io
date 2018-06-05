@@ -30,38 +30,20 @@ function exportAsText() {
     saveAs(blob, 'deferred-scrobble-result.json');
 }
 
-function LoadDataAsJSON() {
-    var thisObject = this;
-    var inputNode = event.target;
-    var reader = new FileReader();
-    reader.onload = function () {
-        var g_Json_Data = JSON.parse(reader.result);
+function LoadDataAsJSON_CreateTracklistTable(g_Json_Data, i) {
+    var newElem = ("<table>");
+    var AllTracksLength = 0;
+    var FIIO_ONE_ALBUM = g_Json_Data[i].tracks;
+    for (var j in FIIO_ONE_ALBUM) {
+        newElem += ("<tr><td>" + FIIO_ONE_ALBUM[j]['Title'] + "</td>");
 
-        for (var i in g_Json_Data) {
-            var trElem = "<tr>";
-            //trElem += "<td></td>\n"); // cover art
+        var trackDurationArray = FIIO_ONE_ALBUM[j]['Duration'].split(':');
+        var trackDuration = ((parseInt(trackDurationArray[0], 10) * 60) + parseInt(trackDurationArray[1], 10)) * 1000;
+        AllTracksLength += trackDuration;
 
-            trElem += ("<td><h2>" + g_Json_Data[i].id + "</h2>\n");
-            trElem += ("</td>\n");
+        var RootFolder = escapeChars(g_Json_Data[i].id.replace(/\\/g, "/"));
 
-            trElem += ("<td>\n");
-            trElem += ("<a id='add-album-" + i + "' href='#' onclick='addAlbum(\"" + i + "\"); return false;''>add to scrobble list</a>\n");
-            trElem += ("<br />\n");
-            trElem += ("<br />\n");
-            trElem += ("<a id='showhide-tracklist-" + i + "' href='#' onclick='showTracklist(\"" + i + "\"); return false;'><img class='icon' src='ext/plus.gif' id='icon-tracklist-" + i + "' /></a><span>&nbsp;show/hide tracklist</span>\n");
-            var newElem = ("<table>");
-            var AllTracksLength = 0;
-            var FIIO_ONE_ALBUM = g_Json_Data[i].tracks;
-            for (var j in FIIO_ONE_ALBUM) {
-                newElem += ("<tr><td>" + FIIO_ONE_ALBUM[j]['Title'] + "</td>");
-
-                var trackDurationArray = FIIO_ONE_ALBUM[j]['Duration'].split(':');
-                var trackDuration = ((parseInt(trackDurationArray[0], 10) * 60) + parseInt(trackDurationArray[1], 10)) * 1000;
-                AllTracksLength += trackDuration;
-
-                var RootFolder = escapeChars(g_Json_Data[i].id.replace(/\\/g, "/"));
-
-                newElem += ("<td><a class='singletrack' href='#' id='scrobble-track-" + i + "-" + j + "' " +
+        newElem += ("<td><a class='singletrack' href='#' id='scrobble-track-" + i + "-" + j + "' " +
                     "data-number=\"" + parseInt(FIIO_ONE_ALBUM[j]['TN'], 10) + "\" " +
                     "data-duration=\"" + trackDuration + "\" " +
                     "data-scrobbletime=\"\" " +
@@ -71,7 +53,7 @@ function LoadDataAsJSON() {
                     "data-title=\"" + escapeChars(FIIO_ONE_ALBUM[j]['Title']) + "\" " +
                     "data-rootfolder=\"" + RootFolder + "\" " +
                     "onclick='scrobbleTrack(\
-\"" + RootFolder  + "\",\
+\"" + RootFolder + "\",\
 \"" + escapeChars(FIIO_ONE_ALBUM[j]['Artist']) + "\",\
 \"" + escapeChars(FIIO_ONE_ALBUM[j]['AlbumArtist']) + "\",\
 \"" + escapeChars(FIIO_ONE_ALBUM[j]['Album']) + "\",\
@@ -82,30 +64,59 @@ this.dataset.duration,\
 this.dataset.scrobbletime); " +
 "return false;'>scrobble</a></td>");
 
-                newElem += ("<td><img class='throbber' src='ext/throbber.gif' id='throbber-" + i + "-" + j + "' style='display: none;' />");
-                newElem += ("<span class='progress' id='progress-" + i + "-" + j + "'></span></td>");
+        newElem += ("<td><img class='throbber' src='ext/throbber.gif' id='throbber-" + i + "-" + j + "' style='display: none;' />");
+        newElem += ("<span class='progress' id='progress-" + i + "-" + j + "'></span></td>");
 
-                newElem += ("</tr>\n");
-            } // for (var j in FIIO_ONE_ALBUM)
-            newElem += ("</table>\n");
+        newElem += ("</tr>\n");
+    } // for (var j in FIIO_ONE_ALBUM)
+    newElem += ("</table>\n");
 
-            trElem += ("&nbsp;&nbsp;&nbsp;<a id='scrobble-album-" + i + "' href='#' onclick='scrobbleAlbum(\"" + i + "\"); return false;'' style='display: none;'>scrobble album</a>\n");
+    return {Elem: newElem, AllTracksLength};
+}
+
+function LoadDataAsJSON() {
+    var thisObject = this;
+    var inputNode = event.target;
+    var reader = new FileReader();
+    reader.onload = function () {
+        var g_Json_Data = JSON.parse(reader.result);
+
+        var resElem = "<tr><td colspan=2><div id='scrobbleListResult-'></div></td></tr>\n";
+        $("#main-table-body").append(resElem);
+
+        for (var i in g_Json_Data) {
+            var trElem = "<tr>";
+            //trElem += "<td></td>\n"); // cover art
+
+            // remove trailing '000_favourite' subdir
+            var Path = g_Json_Data[i].id.replace(/000_favourite\\/, '');
+            // remove last part with cue
+            if (".cue" === Path.substr(Path.length - 4).toLowerCase()) {
+                Path = Path.substr(0, Path.lastIndexOf('\\'));
+            }
+
+            trElem += ("<td><h3>" + Path + "\n");
+            trElem += ("<a id='showhide-tracklist-" + i + "' href='#' onclick='showTracklist(\"" + i + "\"); return false;'><img class='icon' src='ext/plus.gif' id='icon-tracklist-" + i + "' /></a>\n");
+            trElem += ("</h3>\n");
+
+            var newElemPlusLength = LoadDataAsJSON_CreateTracklistTable(g_Json_Data, i);
+            trElem += ("<a id='scrobble-album-" + i + "' href='#' onclick='scrobbleAlbum(\"" + i + "\"); return false;'' style='display: none;'>scrobble album</a>\n");
             trElem += ("<img class='throbber' src='ext/throbber.gif' id='throbber-" + i + "' style='display: none;' />");
             trElem += ("<span class='progress' id='progress-" + i + "'></span>");
-            trElem += ("<div id='tracklist-" + i + "' style='display: none;' data-duration=\"" + AllTracksLength + "\">\n");
-            trElem += (newElem);
+            trElem += ("<div id='tracklist-" + i + "' style='display: none;' data-duration=\"" + newElemPlusLength.AllTracksLength + "\">\n");
+            trElem += newElemPlusLength.Elem;
             trElem += ("</div>\n");
-            trElem += ("</div></td>\n");
 
-            if (0 == i) {
-                trElem += ("<td rowspan=\"" + g_Json_Data.length + "\">");
-                trElem += ("<div id='scrobbleListResult-'></div>");
-                trElem += ("</td>");
-            }
+            trElem += ("</td>\n");
+
+            trElem += ("<td>\n");
+            trElem += "<input type='button' value='+' onclick='addAlbum(\"" + i + "\"); return false;' >";
+            trElem += ("</td>\n");
+
             trElem += ("</tr>\n");
             $("#main-table-body").append(trElem);
         } // for (var i in g_Json_Data)
-    }; //  reader.onload = function
+    };   //  reader.onload = function
 
     reader.readAsText(inputNode.files[0], 'utf-8');
 }
@@ -240,7 +251,7 @@ function scrobbleTrack(rootFolder, artist, releaseArtist, releaseTitle, trackTit
     });
     trackAddedToResult();
 
-    $("#aimpTimes").append("<tr><td>" + rootFolder + "</td><td>" + aimpTime + "</td></tr>");
+    //$("#aimpTimes").append("<tr><td>" + rootFolder + "</td><td>" + aimpTime + "</td></tr>");
 }
 
 function scrobbleAlbum(tracklistId) {
